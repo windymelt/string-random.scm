@@ -7,22 +7,35 @@
 
 (define (run str) (eval (read (open-input-string str)) (interaction-environment)))
 
-(define %char ($none-of #[\[\(\|]))
+(define %char ($none-of #[\[\(\|?+*{}}]))
 (define %char-class
   ($lift
    (^[cs] (cons 'class (run (string-append "#[" (list->string cs) "]"))))
    ($between ($c #\[) ($many ($none-of #[\]])) ($c #\]))))
 (define %atom ($or ($between ($c #\() ($lazy %regex) ($c #\))) %char %char-class))
+(define %bracket-form
+  ($do
+   [_ ($c #\{)]
+   [a ($many digit 1)]
+   [_ ($c #\,)]
+   [z ($many digit 1)]
+   [_ ($c #\})]
+   ($return (cons 'range (cons (string->number (list->string a)) (string->number (list->string z)))))))
 (define %piece ($do
                 [a %atom]
-                [op ($optional ($one-of #[?*+]))]
+                [op ($optional ($or
+                                ($one-of #[?*+])
+                                %bracket-form))]
                 ($return
-                 (if op (cons ($ string->symbol $ list->string $ list op) (list a)) (cons #f (list a))))))
+                 (cond
+                  [(char? op) (cons ($ string->symbol $ list->string $ list op) (list a))]
+                  [(pair? op) (cons op (list a))]
+                  [else (cons #f (list a))]))))
 (define %branch ($many %piece 1))
 (define %regex ($lift (^[xs] (cons 'or xs)) ($sep-by %branch ($c #\|))))
 
 
-(define tgt "[01]+")
+(define tgt "a?b*c+,[ぁ-ん]{2,4}")
 (print (peg-parse-string %regex tgt))
 
 (define (pop gen) (car (generator->list gen 1)))
@@ -34,6 +47,7 @@
     [(? char? c) ($ list->string $ list c)]
     [(#f . c) (walk c)]
     [('class . cs) (popstr (chars$ cs) 1)]
+    [(('range . (a . z)) . xs) (walk (make-list (pop (integers-between$ a z)) xs))]
     [('? . xs) (if booleans (walk xs) "")]
     [('+ . xs) (walk (make-list (pop (integers$ MAX-REPEAT 1)) xs))]
     [('* . xs) (walk (make-list (pop (integers$ MAX-REPEAT 0)) xs))]
