@@ -1,20 +1,28 @@
 (use parser.peg)
 (use util.match)
 
-(define %char ($none-of #[\]\)]))
+(define %char ($none-of #[\]\)\|]))
 (define %atom ($or ($between ($c #\() ($lazy %regex) ($c #\))) %char))
-(define %piece ($do [a %atom] [op ($optional ($one-of #[?*+]))] ($return (if op (cons op (list a)) a))))
+(define %piece ($do
+                [a %atom]
+                [op ($optional ($one-of #[?*+]))]
+                ($return
+                 (if op (cons ($ string->symbol $ list->string $ list op) (list a)) (cons #f (list a))))))
 (define %branch ($many %piece 1))
-(define %regex ($lift (cut cons 'or <>) ($sep-by %branch ($c #\|))))
+(define %regex ($lift (^[xs] (cons 'or xs)) ($sep-by %branch ($c #\|))))
 
-(print (peg-parse-string %regex "セミの鳴き声です: ( (ミー?ン)+|(ツクツク|ホーシ)+|(ジー?)+)"))
+(define tgt "(nyaa|meow)")
+(print (peg-parse-string %regex tgt))
 
 (define s "")
 (define (walk tree)
-  (match tree
+  (match #?=tree
+    [() ""]
+    [(? char? c) ($ list->string $ list #?=c)]
+    [(#f . c) (walk c)]
     [('? . xs) ""]
-    [('+ . xs) xs]
+    [('+ . xs) (walk xs)]
     [('or . xs) (walk (car xs))]
-    [(x . y . (xxs)) (string-append x y (walk xxs))]))
+    [(x . xs) (string-append (walk x) (walk xs))]))
 
-(print (walk (peg-parse-string %regex "セミの鳴き声です: ( (ミー?ン)+|(ツクツク|ホーシ)+|(ジー?)+)")))
+(print (walk (peg-parse-string %regex tgt)))
