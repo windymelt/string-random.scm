@@ -49,7 +49,7 @@
 (define %regex ($lift (cut cons 'or <>) ($sep-by %branch ($c #\|))))
 
 ;;; generating string
-(define tgt "[カコヵか][ッー]{1,3}?[フヒふひ]{1,3}[ィェー]{1,3}[ズス][ドクグュ][リイ][プブぷぶ]{1,3}[トドォ]{1,2}")
+(define tgt "[カコヵか][ッー]{1,3}[フヒふひ]{1,3}[ィェー]{1,3}[ズス][ドクグュ][リイ][プブぷぶ]{1,3}[トドォ]{1,2}")
 (print (peg-parse-string %regex tgt))
 
 (define (pop gen) (car (generator->list gen 1)))
@@ -70,8 +70,12 @@
 
 ;(set! (random-data-seed) 4)
 (print (walk (peg-parse-string %regex tgt)))
-(print (generator->list
-        (generate (^[yield] (let loop ([i 0])
-                              (when (< i 10) (yield (walk (peg-parse-string %regex tgt))) (loop (+ i 1))))))
-        10))
+(print (string-join
+        (generator->list
+         (generate
+          (^[yield]
+            (let loop ([i 0])
+              (when (< i 10) (yield (walk (peg-parse-string %regex tgt))) (loop (+ i 1))))))
+         10)
+        "\n"))
 
