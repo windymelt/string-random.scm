@@ -10,6 +10,7 @@
 ;; (run "(+ 1 2)") => 3
 (define (run str) (eval (read (open-input-string str)) (interaction-environment)))
 (define (char->symbol c) (string->symbol (list->string (list c))))
+(define (chars->number cx) (string->number (list->string cx)))
 
 ;;; defining parser
 (define %char ($none-of #[\[\(\|?+*{}}]))
@@ -21,24 +22,26 @@
 
 (define %atom ($or ($between ($c #\() ($lazy %regex) ($c #\))) %char %char-class))
 
-(define %bracket-form
+(define %bracket-range-form
   ($do
-   [_ ($c #\{)]
-   [lower-bound ($many1 digit)]
-   [_ ($c #\,)]
-   [upper-bound ($many1 digit)]
-   [_ ($c #\})]
+   [bounds ($between ($c #\{) ($sep-by ($many1 digit) ($c #\,)) ($c #\}))]
    ($return
-    (cons
-     'range
-     (cons
-      ($ string->number $ list->string lower-bound)
-      ($ string->number $ list->string upper-bound))))))
+    (case (length bounds)
+      [(1)
+       (cons
+        'times
+        (chars->number (car bounds)))]
+      [else
+       (cons
+        'range
+        (cons
+         (chars->number (car bounds))
+         (chars->number (cadr bounds))))]))))
 
 (define %piece
   ($do
    [a %atom]
-   [quantifier ($many ($or ($one-of #[?*+]) %bracket-form))]
+   [quantifier ($many ($or ($one-of #[?*+]) %bracket-range-form))]
    ($return
     (fold
      (^[q body]
@@ -65,6 +68,7 @@
     [(#f . c) (walk c)]
     [('class . cs) (popstr (chars$ cs) 1)]
     [(('range . (a . z)) . xs) (walk (make-list (pop (integers-between$ a z)) xs))]
+    [(('times . n) . xs) (walk (make-list n xs))]
     [('? . xs) (if booleans (walk xs) "")]
     [('+ . xs) (walk (make-list (pop (integers$ MAX-REPEAT 1)) xs))]
     [('* . xs) (walk (make-list (pop (integers$ MAX-REPEAT 0)) xs))]
