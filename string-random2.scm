@@ -9,6 +9,7 @@
 ;;; utility
 ;; (run "(+ 1 2)") => 3
 (define (run str) (eval (read (open-input-string str)) (interaction-environment)))
+(define (char->symbol c) (string->symbol (list->string (list c))))
 
 ;;; defining parser
 (define %char ($none-of #[\[\(\|?+*{}}]))
@@ -42,7 +43,7 @@
     (fold
      (^[q body]
        (cond
-        [(char? q) (cons (string->symbol (list->string (list q))) body)]
+        [(char? q) (cons (char->symbol q) body)]
         [(pair? q) (cons q body)]
         [else (cons #f body)]))
      (list a)
@@ -71,13 +72,19 @@
     [(x . xs) (string-append (walk x) (walk xs))]))
 
 ;(set! (random-data-seed) 4)
-(print (walk (peg-parse-string %regex tgt)))
-(print (string-join
-        (generator->list
-         (generate
-          (^[yield]
-            (let loop ([i 0])
-              (when (< i 10) (yield (walk (peg-parse-string %regex tgt))) (loop (+ i 1))))))
-         10)
-        "\n"))
+(define sep-by-nl (cut string-join <> "\n"))
+
+;;; main
+(define (main *argv*)
+  (let1
+   tgt (cadr *argv*)
+   (print (peg-parse-string %regex tgt))
+   ($ print
+      $ sep-by-nl
+      $ generator->list
+      $ generate
+      (^[yield]
+        (let loop ([i 0])
+          (when (< i 10) ($ yield $ walk $ peg-parse-string %regex tgt) (loop (+ i 1)))
+          )))))
 
