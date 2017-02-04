@@ -37,20 +37,22 @@
 (define %piece
   ($do
    [a %atom]
-   [quantifier ($optional ($or ($one-of #[?*+]) %bracket-form))]
+   [quantifier ($many ($or ($one-of #[?*+]) %bracket-form))]
    ($return
-    (cond
-     [(char? quantifier) (cons ($ string->symbol $ list->string $ list quantifier) (list a))]
-     [(pair? quantifier) (cons quantifier (list a))]
-     [else (cons #f (list a))]))))
+    (fold
+     (^[q body]
+       (cond
+        [(char? q) (cons (string->symbol (list->string (list q))) body)]
+        [(pair? q) (cons q body)]
+        [else (cons #f body)]))
+     (list a)
+     quantifier))))
 
 (define %branch ($many1 %piece))
 
 (define %regex ($lift (cut cons 'or <>) ($sep-by %branch ($c #\|))))
 
 ;;; generating string
-(define tgt "[カコヵか][ッー]{1,3}[フヒふひ]{1,3}[ィェー]{1,3}[ズス][ドクグュ][リイ][プブぷぶ]{1,3}[トドォ]{1,2}")
-(print (peg-parse-string %regex tgt))
 
 (define (pop gen) (car (generator->list gen 1)))
 (define (popstr gen len) (list->string (generator->list gen len)))
