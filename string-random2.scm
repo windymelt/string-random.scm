@@ -4,7 +4,7 @@
 (use gauche.generator)
 
 ;;; const
-(define MAX-REPEAT 20)
+(define MAX-REPEAT 7)
 
 ;;; utility
 ;; (run "(+ 1 2)") => 3
@@ -13,7 +13,7 @@
 (define (chars->number cx) (string->number (list->string cx)))
 
 ;;; defining parser
-(define %char ($none-of #[\[\(\|?+*{}}]))
+(define %char ($none-of #[\[\(\|?+*{}}\)\]]))
 
 (define %char-class
   ($lift
