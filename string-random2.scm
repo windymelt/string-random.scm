@@ -1,10 +1,12 @@
+#!/usr/bin/env gosh
 (use parser.peg)
 (use util.match)
 (use data.random)
 (use gauche.generator)
+(use gauche.parseopt)
 
 ;;; const
-(define MAX-REPEAT 7)
+(define *max-repeat* 6)
 
 ;;; utility
 ;; (run "(+ 1 2)") => 3
@@ -70,25 +72,32 @@
     [(('range . (a . z)) . xs) (walk (make-list (pop (integers-between$ a z)) xs))]
     [(('times . n) . xs) (walk (make-list n xs))]
     [('? . xs) (if booleans (walk xs) "")]
-    [('+ . xs) (walk (make-list (pop (integers$ MAX-REPEAT 1)) xs))]
-    [('* . xs) (walk (make-list (pop (integers$ MAX-REPEAT 0)) xs))]
+    [('+ . xs) (walk (make-list (pop (integers$ *max-repeat* 1)) xs))]
+    [('* . xs) (walk (make-list (pop (integers$ *max-repeat* 0)) xs))]
     [('or . xs) ($ walk $ pop $ samples$ xs)]
     [(x . xs) (string-append (walk x) (walk xs))]))
 
-;(set! (random-data-seed) 4)
 (define sep-by-nl (cut string-join <> "\n"))
 
 ;;; main
-(define (main *argv*)
-  (let1
-   tgt (cadr *argv*)
-   (print (peg-parse-string %regex tgt))
-   ($ print
-      $ sep-by-nl
-      $ generator->list
-      $ generate
-      (^[yield]
-        (let loop ([i 0])
-          (when (< i 10) ($ yield $ walk $ peg-parse-string %regex tgt) (loop (+ i 1)))
-          )))))
+(define (main *args*)
+  (let-args (cdr *args*)
+      ([amount "n=i" 10]
+       [seed "seed=i" 0]
+       [max-repeat "max-repeat=i" 6]
+       . restargs)
+    (unless (positive? amount) (raise "n should be natural number."))
+    (unless (positive? max-repeat) (raise "max-repeat should be natural number."))
+    (set! (random-data-seed) seed)
+    (set! *max-repeat* max-repeat)
+    (let1
+        tgt (car restargs)
+      ($ print
+         $ sep-by-nl
+         $ generator->list
+         $ generate
+         (^[yield]
+           (let loop ([i 0])
+             (when (< i amount) ($ yield $ walk $ peg-parse-string %regex tgt) (loop (+ i 1)))
+             ))))))
 
