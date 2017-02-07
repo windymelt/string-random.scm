@@ -1,5 +1,7 @@
 # string-random.scm
-A gauche implementation of String::Random
+A [Gauche](https://practical-scheme.net/gauche/index.html) implementation of String::Random
+
+Works in Gauche 0.9.5
 
 ## Usage
 
