@@ -17,10 +17,24 @@
 ;;; defining parser
 (define %char ($none-of #[\[\(\|?+*{}}\)\]]))
 
+(define %posix-charset-literal
+  ($do
+   [_ ($c #\[)]
+   [_ ($c #\:)]
+   [label ($many lower)]
+   [_ ($c #\:)]
+   [_ ($c #\])]
+   ($return (append (string->list "[:") label (string->list ":]")))))
+
+(define %char-class-char
+  ($do
+   [c ($none-of #[\]])]
+   ($return (list c))))
+
 (define %char-class
   ($lift
-   (^[cs] (cons 'class (run #"#[~(list->string cs)]")))
-   ($between ($c #\[) ($many ($none-of #[\]])) ($c #\]))))
+   (^[cs] (cons 'class (run #"#[~(list->string (apply append cs))]")))
+   ($between ($c #\[) ($many ($or %posix-charset-literal %char-class-char)) ($c #\]))))
 
 (define %atom ($or ($between ($c #\() ($lazy %regex) ($c #\))) %char %char-class))
 
