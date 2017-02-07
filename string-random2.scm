@@ -15,7 +15,13 @@
 (define (chars->number cx) (string->number (list->string cx)))
 
 ;;; defining parser
-(define %char ($none-of #[\[\(\|?+*{}}\)\]]))
+(define %escaped-char
+  ($do
+   [_ ($c #\\)]
+   [label ($one-of #[sdwSDW^\\.\-])]
+   ($return (cons 'esc (char->symbol label)))))
+
+(define %char ($or %escaped-char ($none-of #[\[\(\|?+*{}}\)\]])))
 
 (define %posix-charset-literal
   ($do
@@ -36,7 +42,7 @@
    (^[cs] (cons 'class (run #"#[~(list->string (apply append cs))]")))
    ($between ($c #\[) ($many ($or %posix-charset-literal %char-class-char)) ($c #\]))))
 
-(define %atom ($or ($between ($c #\() ($lazy %regex) ($c #\))) %char %char-class))
+(define %atom ($or ($between ($c #\() ($lazy %regex) ($c #\))) %char %escaped-char %char-class))
 
 (define %bracket-range-form
   ($do
@@ -82,10 +88,11 @@
     [() ""]
     [(? char? c) ($ list->string $ list c)]
     [(#f . c) (walk c)]
+    [('esc . c) (popstr (chars$ (run #"#[\\~c]")) 1)]
     [('class . cs) (popstr (chars$ cs) 1)]
     [(('range . (a . z)) . xs) (walk (make-list (pop (integers-between$ a z)) xs))]
     [(('times . n) . xs) (walk (make-list n xs))]
-    [('? . xs) (if booleans (walk xs) "")]
+    [('? . xs) (if (booleans) (walk xs) "")]
     [('+ . xs) (walk (make-list (pop (integers$ *max-repeat* 1)) xs))]
     [('* . xs) (walk (make-list (pop (integers$ *max-repeat* 0)) xs))]
     [('or . xs) ($ walk $ pop $ samples$ xs)]
